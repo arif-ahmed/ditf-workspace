@@ -1,0 +1,12 @@
+[submodule "dg-tms-api"]
+	path = dg-tms-api
+	url = https://github.com/DG-Infotech/dg-tms-api.git
+[submodule "dg-tms-client-portal"]
+	path = dg-tms-client-portal
+	url = https://github.com/DG-Infotech/dg-tms-client-portal.git
+[submodule "dg-tms-mobile-app"]
+	path = dg-tms-mobile-app
+	url = https://github.com/DG-Infotech/dg-tms-mobile-app.git
+[submodule "dg-tms-web-portal"]
+	path = dg-tms-web-portal
+	url = https://github.com/DG-Infotech/dg-tms-web-portal.git
