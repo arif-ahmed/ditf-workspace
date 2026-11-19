@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: ditf-pg
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ditf
+      POSTGRES_USER: ditf
+      POSTGRES_PASSWORD: ditf
+    volumes:
+      - ditf-pgdata:/var/lib/postgresql/data
+
+volumes:
+  ditf-pgdata:

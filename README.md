@@ -1,6 +1,6 @@
 # DITF Workspace
 
-Central workspace repository that hosts the **DG TMS** component repositories as git submodules.
+Workspace repository that holds the DG TMS component repositories as git submodules.
 
 ## Submodules
 
@@ -26,6 +26,59 @@ Or, from a plain clone:
 git submodule update --init
 ```
 
+## Local development (API)
+
+The backend (`dg-tms-api`) runs locally against a Dockerized PostgreSQL 17 database.
+
+### Database
+
+Start PostgreSQL from the repository root:
+
+```bash
+docker compose -f docker-compose.dev.yml up -d
+```
+
+Wait for the database to accept connections:
+
+```bash
+docker compose -f docker-compose.dev.yml ps
+docker compose -f docker-compose.dev.yml logs -f postgres
+```
+
+Or check readiness directly:
+
+```bash
+docker exec ditf-pg pg_isready -U ditf -d ditf
+```
+
+### Backend
+
+Run the API in Quarkus dev mode:
+
+```bash
+cd dg-tms-api
+$env:QUARKUS_DATASOURCE_JDBC_URL = "jdbc:postgresql://localhost:5432/ditf"
+$env:QUARKUS_DATASOURCE_USERNAME = "ditf"
+$env:QUARKUS_DATASOURCE_PASSWORD = "ditf"
+.\mvnw.cmd quarkus:dev
+```
+
+The API listens on `http://localhost:9096`.
+
+With `db.schema.apply=true`, the API applies the schema at startup: `db/schema.sql`, then `db/change.sql`. Both files are idempotent and run under a lock, so a fresh database volume needs no manual schema step.
+
+### Build
+
+```bash
+cd dg-tms-api
+.\mvnw.cmd package
+```
+
+### Debug
+
+- Quarkus Dev UI: <http://localhost:9096/qdev>
+- `quarkus:dev` watches sources and hot-reloads on changes.
+
 ## Working on a submodule
 
 After cloning, enter the submodule you want to work on and run the usual git commands there:
@@ -42,7 +95,7 @@ To move a submodule to the latest commit on its remote branch:
 git submodule update --init --remote dg-tms-api
 ```
 
-To pin a submodule to a specific commit:
+To make a submodule track a different branch:
 
 ```bash
 git submodule set-branch --branch <branch> dg-tms-api
