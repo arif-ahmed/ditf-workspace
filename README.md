@@ -164,6 +164,50 @@ cd dg-tms-api
 - Quarkus Dev UI: <http://localhost:9096/qdev>
 - `quarkus:dev` watches sources and hot-reloads on changes.
 
+### If running from IntelliJ IDEA
+
+The API is a Quarkus app with no `main()` class, so you run it through the Maven goal `quarkus:dev`. Needs JDK 21 (File > Project Structure > SDK, and Settings > Build Tools > Maven > Runner JRE) and the `ditf-pg` container running (`docker start ditf-pg`).
+
+**1. Give the API the database password.** `application.properties` ships with `quarkus.datasource.password=` empty, so a bare IDE run fails with `The server requested SCRAM-based authentication, but no password was provided`. Do not edit `application.properties`. Create a `.env` file in `dg-tms-api/` (Quarkus dev mode reads it however you launch it):
+
+```properties
+QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://127.0.0.1:5432/ditf
+QUARKUS_DATASOURCE_USERNAME=ditf
+QUARKUS_DATASOURCE_PASSWORD=ditf
+```
+
+Use `127.0.0.1`, not `localhost`: `localhost` can resolve to IPv6 `::1`, where another PostgreSQL on the machine may be listening. Keep `.env` out of git: add it to `.git/info/exclude` (local only, never pushed). The values are dev-only credentials.
+
+**2. Create the run configuration.** Run > Edit Configurations > `+` > Maven:
+
+| Field | Value |
+| --- | --- |
+| Name | `Quarkus Dev` |
+| Command line | `quarkus:dev` |
+| Working directory | `dg-tms-api` |
+
+For the admin API (port 9097) make a second one named `Quarkus Dev (admin)`, with command line `quarkus:dev -Dapp.module=admin` and an environment variable `ADMIN_TOKEN_SECRET` of 32+ characters (e.g. `dev-only-secret-at-least-32-characters-long`). Run the two on different ports at once: the admin build already uses 9097.
+
+**3. Run it.** Click Run on `Quarkus Dev`. It is ready when the console shows `Listening on: http://0.0.0.0:9096`; check `http://localhost:9096/ticket-booking/health`. Press `Space` in the console to restart. Code changes reload on the next request, no restart needed.
+
+**4. Debug it.** Do not use the Debug button on the Maven configuration: that debugs Maven, not your app. Instead, Quarkus dev mode opens a debug port, **5005**, while it runs:
+
+1. Run `Quarkus Dev` as in step 3.
+2. Run > Edit Configurations > `+` > **Remote JVM Debug**, host `localhost`, port `5005`, name `Attach Quarkus`.
+3. Click Debug on `Attach Quarkus`. Set breakpoints and call the API.
+
+If both API builds run at once, the second one finds 5005 taken; start it with `-Ddebug=5006` and attach to that port.
+
+**Troubleshooting**
+
+| Symptom | Fix |
+| --- | --- |
+| `no password was provided` | The `.env` file is missing, or the run's working directory is not `dg-tms-api`. |
+| `Connection refused` on 5432 | Container stopped (`docker start ditf-pg`), or something else owns port 5432. |
+| `password authentication failed` | The app reached a different PostgreSQL. Use `127.0.0.1` in `.env`. |
+| Admin build exits at startup | `ADMIN_TOKEN_SECRET` is not set, or is under 32 characters. |
+| `release version 21 not supported` | The Maven Runner JRE is not JDK 21. |
+
 ## Working on a submodule
 
 After cloning, enter the submodule you want to work on and run the usual git commands there:
