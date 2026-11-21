@@ -52,7 +52,7 @@ Then continue with section B to run the apps.
 
 ### B. Every day (database already created)
 
-One command does all of the steps below (database, both APIs, both web apps, each in its own window), with dev-only settings and no change to any submodule: `.\scripts\dev.ps1 up` (also `status`, `down`). Put personal overrides in `scripts\dev.local.env` (`KEY=VALUE` lines, kept out of git with `.git/info/exclude`). Ticket storage is pointed at an unreachable address on purpose: the API ships real S3 credentials, and a local run must not write to that bucket.
+One command does all of the steps below (database, both APIs, both web apps, each in its own window), with dev-only settings and no change to any submodule: `.\scripts\dev.ps1 up` (also `status`, `down`). Add `-MockPayments` to also run a fake DGePay/S3 so booking, payment and ticket PDFs work end to end. **Start with [docs/local-dev.md](docs/local-dev.md)**: ports, test accounts, test scenarios for the web portal, client portal and mobile app, how to read the encrypted payloads (`scripts\aes.ps1`) and troubleshooting. Put personal overrides in `scripts\dev.local.env` (`KEY=VALUE` lines, kept out of git with `.git/info/exclude`). Ticket storage is pointed at an unreachable address on purpose: the API ships real S3 credentials, and a local run must not write to that bucket.
 
 The manual steps:
 
@@ -153,9 +153,9 @@ With `db.schema.apply=true`, the API applies the schema at startup: `db/schema.s
 It waits for PostgreSQL, applies `dg-tms-api/src/main/resources/db/schema.sql` if the tables are missing (so the API doesn't need to run first), then loads the data in one transaction. It is repeatable: it only replaces rows whose id starts with `5eed5eed` (the data itself looks like real data, with 32-hex ids, Bangladeshi names and payment references; nothing says "seed"). Dev databases only. Without PowerShell, pipe the files yourself: `docker exec -i ditf-pg psql -U ditf -d ditf -v ON_ERROR_STOP=1 < scripts/seed/seed.sql` (after the schema exists).
 
 - Logins (PIN `1234`): admin `01900003001`, admin staff `01900005001`..`003`, QR staff `01900006001`, QR scanner `01900007001`, ticket generator `01900008001`, ticket scanner `01900002001`, agent `01900001001`..`010`. Merchant staff (`0190000400N`) have no PIN.
-- Public pages: `find-ticket` with phone `01711000001` and booking number `7700000001` (paid, unscanned); `01711000003` / `7700000004` is already scanned; `7700000002` is pending, `7700000003` failed, `7700000005` never paid. Gate barcodes follow `2` + 11 digits (`200000100001` is booking 1).
+- Public pages: `find-ticket` with phone `01711000001` and booking number `7700000001` (paid, unscanned); `01711000004` / `7700000004` is already scanned (`TICKET_ALREADY_USED`); `7700000002` is pending, `7700000003` failed, `7700000005` never paid. Gate barcodes follow `2` + 11 digits (`200000100001` is booking 1).
 - Edge cases included: a deactivated user for every role (`0190000R099`, they can't log in), agent `01900001010` with a zero balance (a sale must fail with "Insufficient balance"), bus-only, child-only and combined bookings, percent and flat coupons, a payment retried with two checkout ids, paid bookings whose PDF isn't generated yet, soft-deleted bookings, bus tickets scanned apart from the fair ticket, an unused/deactivated referral code, an inactive stall, collector and QR card, and the QR card numbered `50000000004` already at its daily scan limit.
-- Ticket links are placeholders (`example.invalid`), and payments can't be simulated, since both need S3 and DGePay.
+- Seeded ticket links are placeholders (`example.invalid`). Real payments and S3 are not reachable locally, but `.\scripts\dev.ps1 up -MockPayments` plus `.\scripts\mock-pay.ps1` simulate them (fake DGePay, S3 and PDF hosting). The full local guide, with test scenarios per app, is [docs/local-dev.md](docs/local-dev.md).
 
 ### Build
 

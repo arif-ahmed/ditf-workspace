@@ -2,16 +2,19 @@
 #   .\scripts\dev.ps1 up        database, public API :9096, admin API :9097, web portal :4200, client portal :5000
 #   .\scripts\dev.ps1 status    what is listening
 #   .\scripts\dev.ps1 up -NoApi   same, but without the two APIs (run them from IntelliJ)
+#   .\scripts\dev.ps1 up -MockPayments   also start the fake DGePay + S3 (:18080/:18090) and fake media (:18091) and point the
+#                               public API at them, so a full booking -> pay -> ticket PDF works offline (then: scripts\mock-pay.ps1)
 #   .\scripts\dev.ps1 down      stop the apps (the database container is left running; add -Db to stop it too)
 # Local overrides (never committed): scripts/dev.local.env, one KEY=VALUE per line, e.g. SCANNER_KEYS=gate-1:<key>
 param(
     [ValidateSet('up', 'down', 'status')][string]$Action = 'up',
     [switch]$Db,
-    [switch]$NoApi   # run the APIs from IntelliJ instead (see docs/local-dev.md)
+    [switch]$NoApi,  # run the APIs from IntelliJ instead (see docs/local-dev.md)
+    [switch]$MockPayments
 )
 $ErrorActionPreference = 'Stop'
 $root = Resolve-Path (Join-Path $PSScriptRoot '..')
-$ports = @{ 'public API' = 9096; 'admin API' = 9097; 'web portal' = 4200; 'client portal' = 5000 }
+$ports = @{ 'public API' = 9096; 'admin API' = 9097; 'web portal' = 4200; 'client portal' = 5000; 'mock DGePay' = 18080; 'mock media' = 18091 }
 
 function Test-Port($p) { [bool](Get-NetTCPConnection -State Listen -LocalPort $p -ErrorAction SilentlyContinue) }
 
@@ -57,6 +60,21 @@ $cfg = [ordered]@{
     APP_PAYMENT_RESULT_REDIRECT_URL      = 'http://localhost:4200/txn-status'
     STORAGE_ENDPOINT                     = 'http://127.0.0.1:9'
 }
+$uploads = Join-Path $env:TEMP 'ditf-mock-uploads'
+if ($MockPayments) {
+    # The e2e suite's mock gateway (same protocol as DGePay). Its credentials are fixed test values, not secrets.
+    $mockDir = Join-Path $root 'dg-tms-api\src\test\e2e'
+    python -c "import cryptography" 2>$null
+    if ($LASTEXITCODE -ne 0) { throw 'MockPayments needs Python 3 with: pip install cryptography' }
+    $cfg['DGEPAY_BASE_URL']      = 'http://127.0.0.1:18080/payment_gateway'
+    $cfg['DGEPAY_CLIENT_ID']     = 'test-client'
+    $cfg['DGEPAY_CLIENT_SECRET'] = 'mocksecret0123456789abcdef'
+    $cfg['DGEPAY_API_KEY']       = 'mock-api-key'
+    $cfg['STORAGE_ENDPOINT']     = 'http://127.0.0.1:18090'
+    $cfg['STORAGE_ACCESS_KEY']   = 'testaccess'
+    $cfg['STORAGE_SECRET_KEY']   = 'testsecret123'
+    $cfg['STORAGE_PUBLIC_URL']   = 'http://127.0.0.1:18091'
+}
 $local = Join-Path $PSScriptRoot 'dev.local.env'
 if (Test-Path $local) {
     Get-Content $local | Where-Object { $_ -match '^\s*[^#\s][^=]*=' } | ForEach-Object {
@@ -75,6 +93,10 @@ foreach ($d in 'dg-tms-web-portal', 'dg-tms-client-portal') {
     if (-not (Test-Path (Join-Path $root "$d\node_modules"))) { Push-Location (Join-Path $root $d); npm install; Pop-Location }
 }
 
+if ($MockPayments) {
+    Start-App 'ditf mock DGePay :18080' 'dg-tms-api\src\test\e2e' 'python -I mock_dgepay.py' @{ UPLOAD_DIR = $uploads }
+    Start-App 'ditf mock media :18091' 'scripts' "python -I mock_media.py '$uploads'" @{}
+}
 if (-not $NoApi) {
     # Both APIs run in dg-tms-api, so the admin one gets its own port, debug port and log file.
     Start-App 'ditf public API :9096' 'dg-tms-api' '.\mvnw.cmd quarkus:dev' $cfg
