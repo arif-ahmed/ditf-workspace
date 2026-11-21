@@ -52,7 +52,7 @@ SELECT pg_temp.sid('cfg-' || v.k), v.adult, v.child, 10, to_jsonb(p.pts), to_jso
        v.active, c.ts - v.age, pg_temp.sid('user-3-1'), c.ts - v.age, pg_temp.sid('user-3-1')
 FROM (VALUES ('1', 200, 100, true, 60), ('old', 150, 80, false, 90 * 86400)) v(k, adult, child, active, age)
 CROSS JOIN seed_ctx c
-CROSS JOIN (SELECT ARRAY['DITF','Uttara','Mirpur','Gulshan','Mohakhali','Farmgate','Motijheel'] AS pts) p;
+CROSS JOIN (SELECT ARRAY['Uttara','Mirpur','Gulshan','Mohakhali','Farmgate','Motijheel','DITF'] AS pts) p;
 
 -- ---------------------------------------------------------------------------------------------------------------------
 -- Users: phone = 0190000 + role + 3-digit index, e.g. admin 01900003001, agent 3 = 01900001003. PIN 1234.

@@ -52,6 +52,10 @@ Then continue with section B to run the apps.
 
 ### B. Every day (database already created)
 
+One command does all of the steps below (database, both APIs, both web apps, each in its own window), with dev-only settings and no change to any submodule: `.\scripts\dev.ps1 up` (also `status`, `down`). Put personal overrides in `scripts\dev.local.env` (`KEY=VALUE` lines, kept out of git with `.git/info/exclude`). Ticket storage is pointed at an unreachable address on purpose: the API ships real S3 credentials, and a local run must not write to that bucket.
+
+The manual steps:
+
 The database and its data live in a Docker volume, so they survive restarts and reboots. You do not seed again, and you do not run `compose up` again. Make sure Docker Desktop is running, then:
 
 ```powershell
@@ -67,11 +71,12 @@ $env:QUARKUS_DATASOURCE_PASSWORD = "ditf"
 cd dg-tms-api
 $env:QUARKUS_DATASOURCE_PASSWORD = "ditf"
 $env:ADMIN_TOKEN_SECRET = "dev-only-secret-at-least-32-characters-long"
-.\mvnw.cmd quarkus:dev "-Dapp.module=admin"
+$env:QUARKUS_HTTP_PORT = "9097"   # the admin build has no port of its own; without this it clashes with the public API on 9096
+.\mvnw.cmd quarkus:dev "-Dapp.module=admin" "-Ddebug=5006"
 
 # 4. Web apps, each in its own terminal
 cd dg-tms-web-portal;    npm start   # http://localhost:4200  public booking page
-cd dg-tms-client-portal; npm start   # http://localhost:4300  admin portal
+cd dg-tms-client-portal; npm start   # http://localhost:5000  admin portal (4300 is only the Docker/nginx port)
 ```
 
 Log in to the admin portal with phone `01900003001`, PIN `1234`. The seeded logins and test tickets are listed under [Seed data](#seed-data). The mobile app (`dg-tms-mobile-app`) runs with `flutter run --dart-define-from-file=env/dev.json`; log in as an agent (`01900001001`) or a ticket scanner (`01900002001`).
@@ -186,7 +191,7 @@ Use `127.0.0.1`, not `localhost`: `localhost` can resolve to IPv6 `::1`, where a
 | Command line | `quarkus:dev` |
 | Working directory | `dg-tms-api` |
 
-For the admin API (port 9097) make a second one named `Quarkus Dev (admin)`, with command line `quarkus:dev -Dapp.module=admin` and an environment variable `ADMIN_TOKEN_SECRET` of 32+ characters (e.g. `dev-only-secret-at-least-32-characters-long`). Run the two on different ports at once: the admin build already uses 9097.
+For the admin API make a second one named `Quarkus Dev (admin)`, with command line `quarkus:dev -Dapp.module=admin -Ddebug=5006` and environment variables `ADMIN_TOKEN_SECRET` (32+ characters, e.g. `dev-only-secret-at-least-32-characters-long`) and `QUARKUS_HTTP_PORT=9097`. The admin build does not pick 9097 by itself, so without the port it clashes with the public API.
 
 **3. Run it.** Click Run on `Quarkus Dev`. It is ready when the console shows `Listening on: http://0.0.0.0:9096`; check `http://localhost:9096/ticket-booking/health`. Press `Space` in the console to restart. Code changes reload on the next request, no restart needed.
 
