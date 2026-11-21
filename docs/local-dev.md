@@ -97,15 +97,24 @@ Real DGePay and S3 are not reachable. `dev.ps1 up -MockPayments` starts the test
 `scripts/mock_media.py` (18091, serves the saved PDFs) and points the public API at them. Restart the public API after
 switching modes, because settings are read at startup.
 
-Paying with the mock, as the visitor:
+Run only the shared pieces (no apps) with `.\scripts\dev.ps1 infra`: database, mock gateway, mock checkout page
+(`scripts/mock_checkout.py`, 18081: the API talks to this; it forwards to the gateway on 18080 and swaps the
+`checkout.mock` link for a page with Pay / Fail buttons), mock S3 and media. It prints the env vars to put in the
+IntelliJ run configs (`DGEPAY_BASE_URL` must be `http://127.0.0.1:18081/payment_gateway`). Restart the API after changes.
+**`dg-tms-api/.env` wins over what you expect**: Quarkus reads it, so its `DGEPAY_BASE_URL` must be the 18081 one and it
+should also set `APP_PAYMENT_RESULT_REDIRECT_URL=http://localhost:4200/txn-status` (else the callback redirects to production).
 
-1. Book on `http://localhost:4200` and press pay. The page is sent to `https://checkout.mock/pay/<id>`, which is not a
-   real page. That is the expected end of the browser's trip.
-2. Play the customer: `.\scripts\mock-pay.ps1` (or `-Fail`, or `-Booking <number>`). It sets the outcome on the mock,
-   then calls the API's `payment/callback/<id>`, exactly as DGePay's redirect would. The API asks the mock for the
-   result, marks the booking paid and makes the ticket PDF. It prints where the browser would go next.
-3. Open `http://localhost:4200/txn-status?booking_master_id=<id>` (the id is in the printed redirect). The page waits for
-   the payment and then shows the ticket download links; the PDF opens from `http://127.0.0.1:18091/...`.
+Full test, as the visitor:
+
+1. `.\scripts\dev.ps1 infra`, then `.\scripts\dev.ps1 status`: DB, mock DGePay 18080, mock checkout 18081 and mock media 18091 are UP.
+2. Start the public API (:9096) from IntelliJ with the printed env, then `cd dg-tms-web-portal; npm start` (:4200).
+3. Book on `http://localhost:4200` and press pay. The browser lands on `http://localhost:18081/pay/<id>`.
+4. Press **Pay**: the API settles the payment and the browser returns to `http://localhost:4200/txn-status`, which waits
+   for the ticket and shows the download links (PDF from `http://127.0.0.1:18091/...`).
+5. Press **Fail** on another booking: `/txn-status` shows the failed state and the booking can be paid again.
+6. Check: `/find-ticket` (phone + ticket number) finds the booking; the API log has no `ERROR`.
+
+Without the browser, `.\scripts\mock-pay.ps1` (or `-Fail`, `-Booking <number>`) does the same as the buttons.
 
 What stays different from production: DGePay's server-to-server IPN is never sent (the callback alone settles the
 payment, which is enough); the PDFs are kept in `%TEMP%\ditf-mock-uploads`.
@@ -193,7 +202,7 @@ the cause. A database look: `docker exec ditf-pg psql -U ditf -d ditf -c "select
 | Admin API: "port 9096 already in use" | `QUARKUS_HTTP_PORT=9097` not set for that run. |
 | Client portal login or network errors | The admin API (9097) is not running; the portal does not use 9096. |
 | Web portal `SOMETHING_WENT_WRONG` on pay | No DGePay credentials (log: `HMAC failed` / `Empty key`). Use `-MockPayments`, then restart the public API. |
-| `PAYMENT_GATEWAY_ERROR` on pay | The gateway rejected or could not be reached; the log has `DGePay /initiate_payment failed ...`. With the mock: is it running on 18080? |
+| `PAYMENT_GATEWAY_ERROR` on pay | The gateway rejected or could not be reached; the log has `DGePay /initiate_payment failed ...`. With the mock: are 18080 and 18081 running, and is `DGEPAY_BASE_URL` the 18081 one? |
 | Find Ticket button does nothing | The form is invalid and the page shows no message: phone must be exactly 11 digits and the second field filled. |
 | Download opens `example.invalid` | Seeded placeholder link. Pay a booking with `-MockPayments` to get a real one. |
 | `/txn-status` waits for 2 minutes | PDF not made: the API cannot reach storage (check `-MockPayments` and `STORAGE_ENDPOINT`). The booking is still paid. |

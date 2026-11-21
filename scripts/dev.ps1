@@ -4,17 +4,19 @@
 #   .\scripts\dev.ps1 up -NoApi   same, but without the two APIs (run them from IntelliJ)
 #   .\scripts\dev.ps1 up -MockPayments   also start the fake DGePay + S3 (:18080/:18090) and fake media (:18091) and point the
 #                               public API at them, so a full booking -> pay -> ticket PDF works offline (then: scripts\mock-pay.ps1)
+#   .\scripts\dev.ps1 infra   only the shared pieces: database + seed + mock DGePay/S3 + mock media (no APIs, no web apps)
 #   .\scripts\dev.ps1 down      stop the apps (the database container is left running; add -Db to stop it too)
 # Local overrides (never committed): scripts/dev.local.env, one KEY=VALUE per line, e.g. SCANNER_KEYS=gate-1:<key>
 param(
-    [ValidateSet('up', 'down', 'status')][string]$Action = 'up',
+    [ValidateSet('up', 'infra', 'down', 'status')][string]$Action = 'up',
     [switch]$Db,
     [switch]$NoApi,  # run the APIs from IntelliJ instead (see docs/local-dev.md)
     [switch]$MockPayments
 )
 $ErrorActionPreference = 'Stop'
+if ($Action -eq 'infra') { $MockPayments = [switch]$true }  # infra = database + mocks only; run the APIs/web apps yourself
 $root = Resolve-Path (Join-Path $PSScriptRoot '..')
-$ports = @{ 'public API' = 9096; 'admin API' = 9097; 'web portal' = 4200; 'client portal' = 5000; 'mock DGePay' = 18080; 'mock media' = 18091 }
+$ports = @{ 'public API' = 9096; 'admin API' = 9097; 'web portal' = 4200; 'client portal' = 5000; 'mock DGePay' = 18080; 'mock checkout' = 18081; 'mock media' = 18091 }
 
 function Test-Port($p) { [bool](Get-NetTCPConnection -State Listen -LocalPort $p -ErrorAction SilentlyContinue) }
 
@@ -35,8 +37,8 @@ if ($Action -eq 'down') {
 # ---- preflight ----
 docker info *> $null
 if ($LASTEXITCODE -ne 0) { throw 'Docker is not running. Start Docker Desktop first.' }
-if ((java -version 2>&1 | Out-String) -notmatch 'version "2[1-9]') { throw 'JDK 21+ is required for the API (check JAVA_HOME / PATH).' }
-if ([version](node -v).TrimStart('v') -lt [version]'22.12') { throw 'Node 22.12+ is required for the web apps.' }
+if ($Action -ne 'infra' -and (cmd /c 'java -version 2>&1' | Out-String) -notmatch 'version "2[1-9]') { throw 'JDK 21+ is required for the API (check JAVA_HOME / PATH).' }
+if ($Action -ne 'infra' -and [version](node -v).TrimStart('v') -lt [version]'22.12') { throw 'Node 22.12+ is required for the web apps.' }
 foreach ($d in 'dg-tms-api', 'dg-tms-web-portal', 'dg-tms-client-portal') {
     if (-not (Test-Path (Join-Path $root "$d\package.json")) -and -not (Test-Path (Join-Path $root "$d\pom.xml"))) {
         throw "$d is empty. Run: git submodule update --init"
@@ -66,7 +68,7 @@ if ($MockPayments) {
     $mockDir = Join-Path $root 'dg-tms-api\src\test\e2e'
     python -c "import cryptography" 2>$null
     if ($LASTEXITCODE -ne 0) { throw 'MockPayments needs Python 3 with: pip install cryptography' }
-    $cfg['DGEPAY_BASE_URL']      = 'http://127.0.0.1:18080/payment_gateway'
+    $cfg['DGEPAY_BASE_URL']      = 'http://127.0.0.1:18081/payment_gateway'  # via mock_checkout.py, which adds the checkout page
     $cfg['DGEPAY_CLIENT_ID']     = 'test-client'
     $cfg['DGEPAY_CLIENT_SECRET'] = 'mocksecret0123456789abcdef'
     $cfg['DGEPAY_API_KEY']       = 'mock-api-key'
@@ -89,13 +91,21 @@ function Start-App($title, $dir, $cmd, $env) {
     Start-Process pwsh -ArgumentList '-NoExit', '-Command', $line
 }
 
-foreach ($d in 'dg-tms-web-portal', 'dg-tms-client-portal') {
+if ($Action -eq 'up') { foreach ($d in 'dg-tms-web-portal', 'dg-tms-client-portal') {
     if (-not (Test-Path (Join-Path $root "$d\node_modules"))) { Push-Location (Join-Path $root $d); npm install; Pop-Location }
-}
+} }
 
 if ($MockPayments) {
     Start-App 'ditf mock DGePay :18080' 'dg-tms-api\src\test\e2e' 'python -I mock_dgepay.py' @{ UPLOAD_DIR = $uploads }
+    Start-App 'ditf mock checkout :18081' 'scripts' 'python -I mock_checkout.py' @{}
     Start-App 'ditf mock media :18091' 'scripts' "python -I mock_media.py '$uploads'" @{}
+}
+if ($Action -eq 'infra') {
+    Write-Host 'Infra ready: DB :5432 (ditf/ditf, seeded), mock DGePay+S3 :18080/:18090, mock checkout page :18081, mock media :18091.'
+    Write-Host 'Env for the public API (IntelliJ run config / shell):'
+    $cfg.GetEnumerator() | ForEach-Object { Write-Host "  $($_.Key)=$($_.Value)" }
+    Write-Host 'Admin API additionally: QUARKUS_HTTP_PORT=9097, VM option -Dapp.module=admin. Stop with: .\scripts\dev.ps1 down'
+    return
 }
 if (-not $NoApi) {
     # Both APIs run in dg-tms-api, so the admin one gets its own port, debug port and log file.
