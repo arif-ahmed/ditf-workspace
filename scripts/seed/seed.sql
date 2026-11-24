@@ -1,6 +1,6 @@
 -- =====================================================================================================================
 -- DITF dev seed data. Idempotent: removes its own rows and inserts them again. Dev databases only.
--- Needs the schema (seed.ps1 applies dg-tms-api/src/main/resources/db/schema.sql when it is missing).
+-- Needs the current schema (seed.ps1 applies dg-tms-api/src/main/resources/db/change.sql then schema.sql first).
 -- Run it with scripts/seed/seed.ps1. Every seeded login PIN is 1234 (merchant staff, role 4, have no PIN).
 --
 -- The data is meant to look real: ids are 32-hex like the app's own. The script recognises its rows by the id prefix
@@ -31,6 +31,8 @@ DELETE FROM booking_master          WHERE id LIKE '5eed5eed%' OR id LIKE 'seed-%
 DELETE FROM user_referral_codes     WHERE id LIKE '5eed5eed%' OR id LIKE 'seed-%';
 DELETE FROM report_export_files     WHERE id LIKE '5eed5eed%' OR id LIKE 'seed-%';
 DELETE FROM booking_user_master     WHERE id LIKE '5eed5eed%' OR id LIKE 'seed-%';
+-- Also by code: upgrading an older dev DB copies the old seed's coupons over with random ids.
+DELETE FROM coupons                 WHERE id LIKE '5eed5eed%' OR id LIKE 'seed-%' OR lower(code) IN ('dgepay10', 'taka50');
 DELETE FROM booking_configs         WHERE id LIKE '5eed5eed%' OR id LIKE 'seed-%';
 
 CREATE TEMP TABLE seed_ctx ON COMMIT DROP AS SELECT extract(epoch FROM now())::bigint AS ts;
@@ -39,20 +41,26 @@ CREATE TEMP TABLE seed_ctx ON COMMIT DROP AS SELECT extract(epoch FROM now())::b
 -- Booking config: prices, bus routes (DITF is the fixed stop), coupons. The newest active row wins.
 -- ---------------------------------------------------------------------------------------------------------------------
 INSERT INTO booking_configs (id, adult_price, child_price, max_ticket_quantity, pickup_points, drop_points,
-                             seat_price_matrix, max_seat_count, coupon_codes, merchant_info,
+                             seat_price_matrix, max_seat_count, merchant_info,
                              is_active, created_date, created_by, updated_date, updated_by)
 SELECT pg_temp.sid('cfg-' || v.k), v.adult, v.child, 10, to_jsonb(p.pts), to_jsonb(p.pts),
        (SELECT jsonb_object_agg(x.a, (SELECT jsonb_object_agg(y.b, 100 + 30 * abs(x.i - y.j))
                                       FROM unnest(p.pts) WITH ORDINALITY y(b, j) WHERE y.j <> x.i))
         FROM unnest(p.pts) WITH ORDINALITY x(a, i)),
        4,
-       '[{"code":"DgePay10","discount_type":1,"discount_value":10,"max_discount":15},
-         {"code":"TAKA50","discount_type":2,"discount_value":50,"max_discount":50}]'::jsonb,
        '{"merchant_id":"1502418a38c547ed90d55e2028fe3fc4","merchant_name":"Dhaka International Trade Fair"}'::jsonb,
        v.active, c.ts - v.age, pg_temp.sid('user-3-1'), c.ts - v.age, pg_temp.sid('user-3-1')
 FROM (VALUES ('1', 200, 100, true, 60), ('old', 150, 80, false, 90 * 86400)) v(k, adult, child, active, age)
 CROSS JOIN seed_ctx c
 CROSS JOIN (SELECT ARRAY['Uttara','Mirpur','Gulshan','Mohakhali','Farmgate','Motijheel','DITF'] AS pts) p;
+
+-- Coupons (schema v2: their own table, edited in the admin portal).
+INSERT INTO coupons (id, code, description, discount_type, discount_value, max_discount, is_active,
+                     created_date, created_by, updated_date, updated_by)
+SELECT pg_temp.sid('coupon-' || v.code), v.code, v.descr, v.dtype, v.dvalue, v.maxd, true,
+       c.ts, pg_temp.sid('user-3-1'), c.ts, pg_temp.sid('user-3-1')
+FROM (VALUES ('DgePay10', '10% off, up to 15 taka', 1, 10, 15), ('TAKA50', '50 taka off', 2, 50, 50)) v(code, descr, dtype, dvalue, maxd)
+CROSS JOIN seed_ctx c;
 
 -- ---------------------------------------------------------------------------------------------------------------------
 -- Users: phone = 0190000 + role + 3-digit index, e.g. admin 01900003001, agent 3 = 01900001003. PIN 1234.

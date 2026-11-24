@@ -13,13 +13,13 @@ for ($i = 0; $i -lt 30; $i++) {
 }
 if ($LASTEXITCODE -ne 0) { throw "PostgreSQL in '$Container' is not accepting connections." }
 
-$hasSchema = docker exec $Container psql -U ditf -d ditf -tAc "select to_regclass('public.booking_configs') is not null"
-if ($hasSchema.Trim() -ne 't') {
-    $schema = Join-Path $PSScriptRoot '..\..\dg-tms-api\src\main\resources\db\schema.sql'
-    if (-not (Test-Path $schema)) { throw 'dg-tms-api submodule is empty. Run: git submodule update --init' }
-    Write-Host 'Applying schema...'
-    Get-Content $schema -Raw | docker exec -i $Container psql -U ditf -d ditf -v ON_ERROR_STOP=1 -q -1
-    if ($LASTEXITCODE -ne 0) { throw 'Applying the schema failed.' }
+# Same order and files the API uses at startup (both idempotent): upgrades an older DB, builds a fresh one.
+$dbDir = Join-Path $PSScriptRoot '..\..\dg-tms-api\src\main\resources\db'
+if (-not (Test-Path (Join-Path $dbDir 'schema.sql'))) { throw 'dg-tms-api submodule is empty. Run: git submodule update --init' }
+foreach ($f in 'change.sql', 'schema.sql') {
+    Write-Host "Applying $f..."
+    Get-Content (Join-Path $dbDir $f) -Raw | docker exec -i $Container psql -U ditf -d ditf -v ON_ERROR_STOP=1 -q -1 | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Applying $f failed." }
 }
 
 Get-Content (Join-Path $PSScriptRoot 'seed.sql') -Raw | docker exec -i $Container psql -U ditf -d ditf -v ON_ERROR_STOP=1

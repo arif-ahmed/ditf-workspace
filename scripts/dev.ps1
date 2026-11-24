@@ -110,9 +110,9 @@ if ($Action -eq 'infra') {
 if (-not $NoApi) {
     # Both APIs run in dg-tms-api, so the admin one gets its own port, debug port and log file.
     Start-App 'ditf public API :9096' 'dg-tms-api' '.\mvnw.cmd quarkus:dev' $cfg
-    $admin = $cfg.Clone()
-    $admin.QUARKUS_HTTP_PORT = '9097'
-    $admin.QUARKUS_LOG_FILE_PATH = 'logs/admin.log'
+    $admin = [ordered]@{}; foreach ($e in $cfg.GetEnumerator()) { $admin[$e.Key] = $e.Value }  # OrderedDictionary has no .Clone() on newer .NET
+    $admin['QUARKUS_HTTP_PORT'] = '9097'
+    $admin['QUARKUS_LOG_FILE_PATH'] = 'logs/admin.log'
     Start-App 'ditf admin API :9097' 'dg-tms-api' '.\mvnw.cmd quarkus:dev "-Dapp.module=admin" "-Ddebug=5006"' $admin
 }
 Start-App 'ditf web portal :4200' 'dg-tms-web-portal' 'npm start' @{}
