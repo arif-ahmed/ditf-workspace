@@ -10,18 +10,19 @@ main{max-width:1100px;margin:0 auto;padding:24px}h1{margin:0 0 4px;font-size:30p
 .bar{height:10px;border-radius:5px;background:var(--bad);overflow:hidden;display:flex}.bar i{display:block;height:100%}
 table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--bd)}
 th,td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--bd);vertical-align:top}th{background:#eef1f4}
-.tag{font-weight:600;font-size:12px;padding:1px 8px;border-radius:10px;color:#fff}.PASS{background:var(--ok)}.FAIL{background:var(--bad)}.SKIP{background:var(--skip)}
+.tag{font-weight:600;font-size:12px;padding:1px 8px;border-radius:10px;color:#fff}.PASS{background:var(--ok)}.FAIL{background:var(--bad)}.SKIP{background:var(--skip)}.KNOWN{background:#0969da}
 details{margin:4px 0}summary{cursor:pointer}pre{background:#0d1117;color:#e6edf3;padding:10px;border-radius:6px;overflow:auto;max-height:260px;margin:4px 0;white-space:pre-wrap;word-break:break-all}
 .filters button{border:1px solid var(--bd);background:#fff;border-radius:6px;padding:4px 12px;cursor:pointer}.filters button.on{background:#1f2328;color:#fff}
 .chk{margin:2px 0}.mono{font-family:Consolas,monospace;font-size:12px}td.n{white-space:nowrap}
 </style></head><body><main>
 <h1>DITF API test report</h1>
-<div class="sub">{{ started }} · {{ duration }}s · {% if failed == 0 and skipped == 0 %}ALL PASSED{% elif failed %}{{ failed }} FAILED{% else %}{{ skipped }} SKIPPED{% endif %}</div>
+<div class="sub">{{ started }} · {{ duration }}s · {% if failed == 0 and skipped == 0 and known == 0 %}ALL PASSED{% elif failed == 0 and skipped == 0 %}PASSED, {{ known }} KNOWN ISSUE(S){% elif failed %}{{ failed }} FAILED{% else %}{{ skipped }} SKIPPED{% endif %}</div>
 <div class="cards">
  <div class="card"><b>{{ total }}</b>cases</div>
  <div class="card"><b class="ok">{{ passed }}</b>passed</div>
  <div class="card"><b class="bad">{{ failed }}</b>failed</div>
  <div class="card"><b class="skip">{{ skipped }}</b>skipped</div>
+ <div class="card"><b style="color:#0969da">{{ known }}</b>known issues</div>
  <div class="card"><b>{{ checks_passed }}/{{ checks_total }}</b>assertions</div>
  <div class="card"><b>{{ ((passed / total * 100) if total else 0) | round(1) }}%</b>pass rate</div>
  <div class="card"><b>{{ covered|length }}/{{ covered|length + missing|length }}</b>endpoints hit</div>
@@ -32,7 +33,7 @@ details{margin:4px 0}summary{cursor:pointer}pre{background:#0d1117;color:#e6edf3
 <table>{% for k, v in env.items() %}<tr><th style="width:180px">{{ k }}</th><td class="mono">{{ v }}</td></tr>{% endfor %}</table>
 
 <h2>Results</h2>
-<div class="filters">{% for f in ['ALL','PASS','FAIL','SKIP'] %}<button data-f="{{ f }}" class="{{ 'on' if f=='ALL' }}">{{ f }}</button> {% endfor %}</div>
+<div class="filters">{% for f in ['ALL','PASS','FAIL','SKIP','KNOWN'] %}<button data-f="{{ f }}" class="{{ 'on' if f=='ALL' }}">{{ f }}</button> {% endfor %}</div>
 <table id="res"><tr><th>#</th><th>Case</th><th>Group</th><th>Result</th><th>Assertions</th><th>ms</th></tr>
 {% for r in results %}<tr data-s="{{ r.status }}"><td class="n">{{ r.no }}</td>
 <td><details {{ 'open' if r.status == 'FAIL' }}><summary>{{ r.title }}</summary>

@@ -243,3 +243,31 @@ trace and video for failures), `results.json`, `artifacts\`. Reopen a finished r
 `cd tests\web; npm run report`. Debug one failure: `cd tests\web; npx playwright show-trace ..\..\reports\web\artifacts\<case>\trace.zip`.
 To add a case, add a `test(...)` to a file in `tests\web\specs` and call `shot(page, info, 'name')` where a screenshot helps;
 the helpers (`openBooking`, `pickCount`, `fillBooking`, `summary`) are in `specs\helpers.ts`.
+
+## Automated client-portal tests (browser)
+
+Playwright drives the admin back office in a real Chromium: login and its failures (short phone/PIN, wrong PIN, an agent
+logging in), every menu screen, agents (add, validation, duplicate phone), topup/withdraw (balance, zero, over-balance),
+the people screens (admin staff, QR scanners, ticket generators, referral users), coupons (percent/fixed, validation,
+duplicate, edit), merchant stalls, staff QR codes, ticket batches, ticket search, leader board. Each case takes
+screenshots **and is recorded on video**. The suite lives in `tests/client` (its own `package.json`); nothing in a
+submodule is touched.
+
+```powershell
+.\scripts\test-client.ps1 -Up -Open      # start the stack if needed (dev.ps1 up -MockPayments), run everything, open the HTML report
+.\scripts\test-client.ps1                # stack already running (needs client portal :5000 and admin API :9097)
+.\scripts\test-client.ps1 -Only 06       # one spec file (03-agents, 04-topup-withdraw, 06-coupons, ...);  -Headed to watch the browser
+```
+
+First run installs Playwright and Chromium into `tests\client` (needs internet once). Run it from PowerShell 7 (`pwsh`).
+Needs the seed data (`scripts\seed\seed.ps1`, run by `dev.ps1`). Exit code is 0 only if every case passes. The cases create
+real rows in the dev database (agents, staff, coupons, stalls, QR codes, ticket batches), so run them only against this
+local stack; they use fresh phone numbers and codes each run.
+
+Output (git-ignored, in `reports\client\`): `html\index.html` (each case with its steps, screenshots and a video; failures
+also keep a trace), `results.json`, `artifacts\`. Reopen a finished report with `cd tests\client; npm run report`. Debug one
+failure: `cd tests\client; npx playwright show-trace ..\..\reports\client\artifacts\<case>\trace.zip`.
+To add a case, add a `test(...)` to a file in `tests\client\specs` and call `shot(page, info, 'name')` where a screenshot
+helps; helpers (`loginAdmin`, `fillPerson`, `openList`, `submit`, toast checks) are in `specs\helpers.ts`.
+Behaviour found while writing the cases: the merchant-stall form accepts a duplicate stall number (no uniqueness check),
+and admin-staff rows have no detail page.

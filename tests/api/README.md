@@ -24,6 +24,11 @@ concurrency (parallel IPN/callback, parallel gate scans, wallet), payment retrie
 Background jobs (report table, discovered from the source): ticket batch generation + resume, payment `ReconciliationJob`
 (runs on its real timer: dev defaults 120 s tick, 180 s minimum age; skipped if `PAYMENT_RECONCILE_INTERVAL=off` in `scripts/dev.local.env`),
 `DbSetup` partition upkeep. **Not covered:** `AttemptLimiter`'s periodic cleanup (the lockout behaviour itself is tested; the cleanup is not observable via the API).
+Also covered: app-version filter (406), duplicate booking request ids, undecryptable bodies, tampered admin tokens, bus seat pricing and the bus PDF,
+dashboard numbers cross-checked against SQL, DB invariants (schema version, unique barcodes, partition pruning), and the **public gate scan with real
+device keys** (needs `SCANNER_KEYS=gate-1:<24+ chars>,gate-2:<24+ chars>` in `scripts/dev.local.env` and the public API started with it; those cases SKIP otherwise).
+**Known issue (reported, does not fail the run):** the server does not enforce `max_ticket_quantity` / `max_seat_count`; it accepts 11 adults and 5 seats.
+Mark a case like that with `@case(..., known_issue="why")`: it shows as KNOWN while it fails and flags itself when the defect is fixed.
 Job states the API cannot produce (failed or interrupted batch) are forced by editing `background_job` rows in the dev database.
 
 ## Layout

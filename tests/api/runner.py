@@ -28,10 +28,10 @@ class T:
             raise Skip("needs " + ", ".join(missing) + " from an earlier case")
 
 
-def case(title, slow=False, jobs=()):
+def case(title, slow=False, jobs=(), known_issue=""):
     """jobs: names of background jobs this case exercises (see background_jobs() for the discovered names)."""
     def deco(fn):
-        CASES.append({"fn": fn, "title": title, "module": fn.__module__, "slow": slow, "jobs": list(jobs)})
+        CASES.append({"fn": fn, "title": title, "module": fn.__module__, "slow": slow, "jobs": list(jobs), "known_issue": known_issue})
         return fn
     return deco
 
@@ -134,7 +134,10 @@ def run(fail_fast, fast=False):
             if not t.checks:
                 status, error = "FAIL", "case made no assertions"
             elif not all(x["ok"] for x in t.checks):
-                status = "FAIL"
+                # a documented, not-yet-fixed defect is reported but does not fail the run
+                status, error = ("KNOWN", "Known issue: " + c["known_issue"]) if c["known_issue"] else ("FAIL", "")
+            elif c["known_issue"]:
+                error = "Known issue appears FIXED: remove known_issue from this case (" + c["known_issue"] + ")"
         except Skip as e:
             status, error = "SKIP", str(e)
         except Exception:
@@ -163,7 +166,7 @@ def report(results, hit, started):
         j["status"] = "NOT COVERED" if not cs else ("FAIL" if any(r["status"] == "FAIL" for r in cs) else ("PASS" if ran else "SKIP"))
     n = lambda s: sum(1 for r in results if r["status"] == s)
     checks = [x for r in results for x in r["checks"]]
-    ctx = dict(results=results, passed=n("PASS"), failed=n("FAIL"), skipped=n("SKIP"), total=len(results),
+    ctx = dict(results=results, passed=n("PASS"), failed=n("FAIL"), skipped=n("SKIP"), known=n("KNOWN"), total=len(results),
                checks_total=len(checks), checks_passed=sum(x["ok"] for x in checks),
                started=datetime.datetime.fromtimestamp(started).strftime("%Y-%m-%d %H:%M:%S"), duration=round(time.time() - started, 1),
                env=environment(), covered=covered, missing=missing, jobs=jobs,
@@ -174,7 +177,7 @@ def report(results, hit, started):
     stamp = datetime.datetime.fromtimestamp(started).strftime("%Y%m%d-%H%M%S")
     for name in (f"report-{stamp}.html", "latest.html"):
         open(os.path.join(out, name), "w", encoding="utf-8").write(html)
-    json.dump({k: ctx[k] for k in ("results", "passed", "failed", "skipped", "started", "duration", "env")}, open(os.path.join(out, "results.json"), "w"), indent=1)
+    json.dump({k: ctx[k] for k in ("results", "passed", "failed", "skipped", "known", "started", "duration", "env")}, open(os.path.join(out, "results.json"), "w"), indent=1)
     return os.path.join(out, "latest.html"), ctx
 
 
@@ -191,7 +194,7 @@ if __name__ == "__main__":
     load_cases(a.only)
     results, hit, started = run(a.fail_fast, a.fast)
     path, c = report(results, hit, started)
-    print(f"\n{c['passed']} passed, {c['failed']} failed, {c['skipped']} skipped in {c['duration']}s\nReport: {path}")
+    print(f"\n{c['passed']} passed, {c['failed']} failed, {c['skipped']} skipped, {c['known']} known issue(s) in {c['duration']}s\nReport: {path}")
     if a.open:
         os.startfile(path)
     sys.exit(1 if c["failed"] else 0)
