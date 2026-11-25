@@ -63,7 +63,7 @@ FROM (VALUES ('DgePay10', '10% off, up to 15 taka', 1, 10, 15), ('TAKA50', '50 t
 CROSS JOIN seed_ctx c;
 
 -- ---------------------------------------------------------------------------------------------------------------------
--- Users: phone = 0190000 + role + 3-digit index, e.g. admin 01900003001, agent 3 = 01900001003. PIN 1234.
+-- Users: phone = 190000 + role + 3-digit index, e.g. admin 1900003001, agent 3 = 1900001003. PIN 1234.
 -- ---------------------------------------------------------------------------------------------------------------------
 INSERT INTO booking_user_master (id, first_name, last_name, dial_code, phone_number, login_pin, user_role, balance,
                                  printer_type, staff_qr_string, is_active, created_date, created_by, updated_date, updated_by)
@@ -72,7 +72,7 @@ SELECT pg_temp.sid('user-' || t.r || '-' || i),
               'Sakib','Imran','Mitu','Rubel','Sumon','Nasrin','Tasnim','Arif','Mehedi','Sadia'])[1 + (i * 7 + t.r * 3) % 20],
        (ARRAY['Hossain','Ahmed','Rahman','Islam','Chowdhury','Uddin','Khan','Akter','Begum','Sarker',
               'Mia','Sheikh','Talukder','Mollah','Biswas','Das','Roy','Haque','Alam','Siddique'])[1 + (i * 11 + t.r * 5) % 20],
-       '+88', '0190000' || t.r || lpad(i::text, 3, '0'),
+       '+88', '190000' || t.r || lpad(i::text, 3, '0'),
        CASE WHEN t.r = 4 THEN NULL ELSE '1234' END, t.r, 0,
        CASE WHEN t.r IN (1, 2, 7) THEN 1 + i % 2 END,
        CASE WHEN t.r = 4 THEN md5('staffqr-' || i) END,
@@ -87,7 +87,7 @@ INSERT INTO booking_user_master (id, first_name, last_name, dial_code, phone_num
 SELECT pg_temp.sid('user-' || r || '-99'),
        (ARRAY['Jashim','Kabir','Lutfur','Monir','Nazrul','Parvez','Shafiq','Zahid'])[r],
        (ARRAY['Bhuiyan','Mondal','Patwary','Khondokar','Majumder','Sikder','Dewan','Gazi'])[r],
-       '+88', '0190000' || r || '099',
+       '+88', '190000' || r || '099',
        CASE WHEN r = 4 THEN NULL ELSE '1234' END, r, 0, NULL, CASE WHEN r = 4 THEN md5('staffqr-99') END,
        false, c.ts - 30 * 86400, pg_temp.sid('user-3-1'), c.ts - 3 * 86400, pg_temp.sid('user-3-1')
 FROM generate_series(1, 8) r CROSS JOIN seed_ctx c;
@@ -99,7 +99,7 @@ INSERT INTO user_referral_codes (id, first_name, last_name, phone_number, referr
 SELECT pg_temp.sid('ref-' || i),
        (ARRAY['Mahmud','Shirin','Rafiq','Laila','Habib','Rumana','Kamal','Dilara','Obaid'])[i],
        (ARRAY['Ali','Begum','Uddin','Khatun','Mia','Parvin','Hasan','Sultana','Rahman'])[i],
-       '01880000' || lpad(i::text, 3, '0'), lpad(i::text, 3, '0'),
+       '1880000' || lpad(i::text, 3, '0'), lpad(i::text, 3, '0'),
        i <> 9, c.ts - 25 * 86400, pg_temp.sid('user-3-1'), c.ts - 25 * 86400, pg_temp.sid('user-3-1')
 FROM generate_series(1, 9) i CROSS JOIN seed_ctx c;
 
@@ -305,7 +305,7 @@ FROM generate_series(1, 8) i CROSS JOIN seed_ctx c;
 INSERT INTO qr_codes_collector (id, first_name, last_name, phone_number, dial_code, assigned_count, merchant_stall_master_id,
                                 is_active, created_date, created_by, updated_date, updated_by)
 SELECT pg_temp.sid('coll-' || i), (ARRAY['Anwar','Bilkis','Chand','Delwar','Enam','Firoza'])[i],
-       (ARRAY['Hossain','Akter','Mia','Sheikh','Talukder','Nahar'])[i], '01955000' || lpad(i::text, 3, '0'), '+88', 0,
+       (ARRAY['Hossain','Akter','Mia','Sheikh','Talukder','Nahar'])[i], '1955000' || lpad(i::text, 3, '0'), '+88', 0,
        pg_temp.sid('stall-' || i), i <> 6, c.ts - 17 * 86400, pg_temp.sid('user-6-1'), c.ts - 17 * 86400, pg_temp.sid('user-6-1')
 FROM generate_series(1, 6) i CROSS JOIN seed_ctx c;
 

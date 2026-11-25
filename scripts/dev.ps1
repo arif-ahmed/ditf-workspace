@@ -119,5 +119,5 @@ Start-App 'ditf web portal :4200' 'dg-tms-web-portal' 'npm start' @{}
 Start-App 'ditf client portal :5000' 'dg-tms-client-portal' 'npm start' @{}
 
 Write-Host "Started. Check progress with: .\scripts\dev.ps1 status"
-Write-Host "Booking page http://localhost:4200 | Admin portal http://localhost:5000 (phone 01900003001, PIN 1234)"
+Write-Host "Booking page http://localhost:4200 | Admin portal http://localhost:5000 (phone 1900003001, PIN 1234)"
 Write-Host "Mobile app: cd dg-tms-mobile-app; flutter run --dart-define-from-file=env/dev.json"

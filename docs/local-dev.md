@@ -125,11 +125,11 @@ Seeded by `seed.ps1`; every seeded id starts with `5eed5eed`. All PINs are `1234
 
 | Who | Login | Use |
 |---|---|---|
-| Admin | `01900003001` | client portal (everything) |
-| Admin staff | `01900005001`..`003` | client portal, limited |
-| Agent | `01900001001`..`010` | mobile: sell tickets. `01900001010` has zero balance ("Insufficient balance." test) |
-| Ticket scanner | `01900002001` | mobile: gate scan |
-| QR staff / scanner / ticket generator | `01900006001` / `01900007001` / `01900008001` | client portal and mobile roles |
+| Admin | `1900003001` | client portal (everything) |
+| Admin staff | `1900005001`..`003` | client portal, limited |
+| Agent | `1900001001`..`010` | mobile: sell tickets. `1900001010` has zero balance ("Insufficient balance." test) |
+| Ticket scanner | `1900002001` | mobile: gate scan |
+| QR staff / scanner / ticket generator | `1900006001` / `1900007001` / `1900008001` | client portal and mobile roles |
 
 Public bookings (web portal `/find-ticket`, phone + ticket number):
 
@@ -160,18 +160,18 @@ Only a booking you pay yourself with `-MockPayments` has a real PDF.
    payment on the same booking (a new attempt id); whether the page offers a retry button is not documented, so check.
 
 **B. Client portal, admin** (admin API on 9097, nothing else needed)
-1. `http://localhost:5000`, log in `01900003001` / `1234`.
+1. `http://localhost:5000`, log in `1900003001` / `1234`.
 2. Dashboard figures load; the bookings list shows the seeded and your new bookings.
-3. Agents: top up agent `01900001001` and watch the ledger (`user-transaction-ledger`) and the balance change.
+3. Agents: top up agent `1900001001` and watch the ledger (`user-transaction-ledger`) and the balance change.
 4. Ticket search finds a ticket by number; the scan history shows scans.
 5. Bulk ticket batch: starts a background job; the page polls `background-job/{id}` until it ends.
 A 401 sends you back to `/login`, a 403 shows "not allowed".
 
 **C. Mobile app, agent and gate** (admin API on 9097)
-1. Log in as agent `01900001001`. The balance shows.
-2. Sell a ticket. One call prices it, debits the balance and stores the booking as paid. The agent `01900001010` must be
+1. Log in as agent `1900001001`. The balance shows.
+2. Sell a ticket. One call prices it, debits the balance and stores the booking as paid. The agent `1900001010` must be
    refused with "Insufficient balance."
-3. Log in as scanner `01900002001`, scan a gate barcode (`2` + 11 digits; `200000100001` is booking 1). A second scan of
+3. Log in as scanner `1900002001`, scan a gate barcode (`2` + 11 digits; `200000100001` is booking 1). A second scan of
    the same barcode must be refused.
 4. Cross-check: the sale appears in the client portal's bookings list and in the agent's ledger; a ticket just scanned
    on the phone is "already scanned" in the web portal's find-ticket.
