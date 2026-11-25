@@ -214,3 +214,9 @@ the cause. A database look: `docker exec ditf-pg psql -U ditf -d ditf -c "select
 
 Reset: `.\scripts\seed\seed.ps1` restores the seeded rows and fresh dates (it keeps your own data). Clean slate:
 `docker compose -f docker-compose.dev.yml down -v`, then `up -d` and `seed.ps1`.
+
+## Automated API tests
+
+`.\scripts\test.ps1 -Up -Open` runs the API test cases one after another against the running stack (mock payments on) and
+writes an HTML report to `reports\latest.html`. Details and how to add cases: `tests/api/README.md`. The tests make
+real changes in the dev database (`-Fast` skips the one ~2 min case) (new bookings, an agent, a stall, a ticket batch), so run them only against this local stack.
