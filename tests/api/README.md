@@ -5,7 +5,7 @@ touched: the AES key is read (read-only) from `dg-tms-api/.../application.proper
 coverage table is scanned from the API source.
 
 ```powershell
-.\scripts\test.ps1 -Up -Open      # start the stack if needed, run every case in order, open reports\latest.html
+.\scripts\test.ps1 -Up -Open      # start the stack if needed, run every case in order, open reports\api\latest.html
 .\scripts\test.ps1 -Only 04       # one case file;  -FailFast stops at the first failing case
 .\scripts\test.ps1 -Fast          # ~20 s: skips the case that waits ~2 min for the payment reconciliation timer (full run ~2.5 min)
 ```
@@ -14,7 +14,7 @@ Needs the stack from `.\scripts\dev.ps1 up -MockPayments` (the payment cases use
 (`scripts\seed\seed.ps1`, run by dev.ps1), and `pip install cryptography jinja2`. The runner refuses non-local URLs.
 Exit code is 0 only if every case passes.
 
-Output (git-ignored, in `reports\`): `latest.html`, `report-<timestamp>.html` (self-contained, shareable), `results.json`.
+Output (git-ignored, in `reports\api\`): `latest.html`, `report-<timestamp>.html` (self-contained, shareable), `results.json`.
 The report shows totals, pass rate, environment and submodule SHAs, every assertion with expected/actual on failure,
 each request and decrypted response (PINs/tokens masked), the slowest calls, and which API endpoints the run did / did not hit.
 

@@ -11,7 +11,8 @@ param(
     [ValidateSet('up', 'infra', 'down', 'status')][string]$Action = 'up',
     [switch]$Db,
     [switch]$NoApi,  # run the APIs from IntelliJ instead (see docs/local-dev.md)
-    [switch]$MockPayments
+    [switch]$MockPayments,
+    [switch]$Tabs  # one Windows Terminal window with a tab per app, instead of a separate window each
 )
 $ErrorActionPreference = 'Stop'
 if ($Action -eq 'infra') { $MockPayments = [switch]$true }  # infra = database + mocks only; run the APIs/web apps yourself
@@ -85,11 +86,20 @@ if (Test-Path $local) {
 }
 
 # ---- apps: one window each, started through the same commands the submodule READMEs give ----
+$tabArgs = @()
+if ($Tabs -and -not (Get-Command wt -ErrorAction SilentlyContinue)) { throw '-Tabs needs Windows Terminal (wt.exe). Install it from the Microsoft Store.' }
 function Start-App($title, $dir, $cmd, $env) {
     $set = ($env.GetEnumerator() | ForEach-Object { "`$env:$($_.Key)='$($_.Value)';" }) -join ' '
     $line = "`$Host.UI.RawUI.WindowTitle='$title'; Set-Location '$root\$dir'; $set $cmd"
-    Start-Process pwsh -ArgumentList '-NoExit', '-Command', $line
+    if ($Tabs) {
+        # -EncodedCommand sidesteps wt's ';' separator and quoting rules
+        $enc = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($line))
+        $script:tabArgs += @('new-tab', '--title', "`"$title`"", 'pwsh', '-NoExit', '-EncodedCommand', $enc, ';')
+    } else {
+        Start-Process pwsh -ArgumentList '-NoExit', '-Command', $line
+    }
 }
+function Open-Tabs { if ($tabArgs.Count) { Start-Process wt -ArgumentList (@('-w', 'ditf') + $tabArgs[0..($tabArgs.Count - 2)]) } }
 
 if ($Action -eq 'up') { foreach ($d in 'dg-tms-web-portal', 'dg-tms-client-portal') {
     if (-not (Test-Path (Join-Path $root "$d\node_modules"))) { Push-Location (Join-Path $root $d); npm install; Pop-Location }
@@ -101,6 +111,7 @@ if ($MockPayments) {
     Start-App 'ditf mock media :18091' 'scripts' "python -I mock_media.py '$uploads'" @{}
 }
 if ($Action -eq 'infra') {
+    Open-Tabs
     Write-Host 'Infra ready: DB :5432 (ditf/ditf, seeded), mock DGePay+S3 :18080/:18090, mock checkout page :18081, mock media :18091.'
     Write-Host 'Env for the public API (IntelliJ run config / shell):'
     $cfg.GetEnumerator() | ForEach-Object { Write-Host "  $($_.Key)=$($_.Value)" }
@@ -117,6 +128,7 @@ if (-not $NoApi) {
 }
 Start-App 'ditf web portal :4200' 'dg-tms-web-portal' 'npm start' @{}
 Start-App 'ditf client portal :5000' 'dg-tms-client-portal' 'npm start' @{}
+Open-Tabs
 
 Write-Host "Started. Check progress with: .\scripts\dev.ps1 status"
 Write-Host "Booking page http://localhost:4200 | Admin portal http://localhost:5000 (phone 1900003001, PIN 1234)"

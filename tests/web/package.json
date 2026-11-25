@@ -1,0 +1,13 @@
+{
+  "name": "ditf-web-e2e",
+  "private": true,
+  "description": "Playwright end-to-end tests for dg-tms-web-portal (run against the local dev stack)",
+  "scripts": {
+    "test": "playwright test",
+    "report": "playwright show-report ../../reports/web/html"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^22.13.1"
+  }
+}

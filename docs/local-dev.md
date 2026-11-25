@@ -215,8 +215,31 @@ the cause. A database look: `docker exec ditf-pg psql -U ditf -d ditf -c "select
 Reset: `.\scripts\seed\seed.ps1` restores the seeded rows and fresh dates (it keeps your own data). Clean slate:
 `docker compose -f docker-compose.dev.yml down -v`, then `up -d` and `seed.ps1`.
 
-## Automated API tests
+## Automated API tests (no browser)
 
 `.\scripts\test.ps1 -Up -Open` runs the API test cases one after another against the running stack (mock payments on) and
-writes an HTML report to `reports\latest.html`. Details and how to add cases: `tests/api/README.md`. The tests make
+writes an HTML report to `reports\api\latest.html`. Details and how to add cases: `tests/api/README.md`. The tests make
 real changes in the dev database (`-Fast` skips the one ~2 min case) (new bookings, an agent, a stall, a ticket batch), so run them only against this local stack.
+
+## Automated web-portal tests (browser)
+
+Playwright drives the web portal in a real Chromium: booking form (counts, totals, VAT, coupon, referral, language, terms),
+pay and fail through the mock checkout, ticket download, find-ticket, redirects. Every case takes full-page screenshots.
+The suite lives in `tests/web` (its own `package.json`); nothing in a submodule is touched.
+
+```powershell
+.\scripts\test-web.ps1 -Up -Open      # start the stack if needed (dev.ps1 up -MockPayments), run everything, open the HTML report
+.\scripts\test-web.ps1                # stack already running
+.\scripts\test-web.ps1 -Only 03       # one spec file (02-pay, 03-find-ticket, ...);  -Headed to watch the browser
+```
+
+First run installs Playwright and Chromium into `tests\web` (needs internet once). Needs the stack with `-MockPayments`
+(web portal :4200, public API :9096, mock checkout :18081) and the seed data (`scripts\seed\seed.ps1`, run by `dev.ps1`).
+Exit code is 0 only if every case passes. The pay cases create real bookings in the dev database (not seed rows), so run
+them only against this local stack.
+
+Output (git-ignored, in `reports\web\`): `html\index.html` (the report: each case with its steps and screenshots, plus
+trace and video for failures), `results.json`, `artifacts\`. Reopen a finished report with
+`cd tests\web; npm run report`. Debug one failure: `cd tests\web; npx playwright show-trace ..\..\reports\web\artifacts\<case>\trace.zip`.
+To add a case, add a `test(...)` to a file in `tests\web\specs` and call `shot(page, info, 'name')` where a screenshot helps;
+the helpers (`openBooking`, `pickCount`, `fillBooking`, `summary`) are in `specs\helpers.ts`.

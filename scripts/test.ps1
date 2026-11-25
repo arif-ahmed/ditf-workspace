@@ -1,4 +1,4 @@
-# Runs the API test suite (tests/api) one case after another against the local dev stack and writes reports\latest.html.
+# Runs the API test suite (tests/api) one case after another against the local dev stack and writes reports\api\latest.html.
 #   .\scripts\test.ps1              run everything          .\scripts\test.ps1 -Only 04   one case file (prefix)
 #   .\scripts\test.ps1 -Up          start the stack first (dev.ps1 up -MockPayments) if it is not running
 #   .\scripts\test.ps1 -FailFast    stop at the first failing case       -Open   open the report when done

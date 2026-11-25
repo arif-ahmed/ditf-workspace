@@ -169,7 +169,7 @@ def report(results, hit, started):
                env=environment(), covered=covered, missing=missing, jobs=jobs,
                slowest=sorted((c for r in results for c in r["calls"]), key=lambda c: -c["ms"])[:8])
     html = Environment(loader=FileSystemLoader(os.path.join(HERE, "report")), autoescape=select_autoescape()).get_template("template.html").render(**ctx)
-    out = os.path.join(ROOT, "reports")
+    out = os.path.join(ROOT, "reports", "api")
     os.makedirs(out, exist_ok=True)
     stamp = datetime.datetime.fromtimestamp(started).strftime("%Y%m%d-%H%M%S")
     for name in (f"report-{stamp}.html", "latest.html"):
